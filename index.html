@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="author" content="Rahimeh Gharibpour" />
+    <meta name="description" content="Eye Tracking on the Map" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Eye Tracking on the Map</title>
+
+    <!-- Link to Stylesheet -->
+    <link rel="stylesheet" href="css/style.css" />
+
+    <!-- Link to Leaflet Stylesheet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin=""/>
+
+    <!-- Link to WebGazer.js library -->
+    <script src="https://webgazer.cs.brown.edu/webgazer.js" type="text/javascript"></script>
+
+    <!-- Link to Leaflet JavaScript library -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        crossorigin=""></script>
+		
+	<!-- Include the tracking.js library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tracking.js/1.1.3/tracking-min.js"></script>
+
+    <!-- Custom CSS -->
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        #map {
+            height:680px;
+            width: 100%;
+            display: none; /* Initially hide the map */
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        #map-title, #calibration-title {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 22px;
+            color: #333;
+            z-index: 1000;
+            text-align: center;
+        }
+        #calibration-title {
+            top: 5%;
+            font-size: 25px;
+            font-weight: bold;
+        }
+        #calibration-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%;
+            height: 100%;
+            display: block;
+            text-align: center;
+            z-index: 1000;
+            background: none;
+        }
+        #calibration-instructions {
+            position: absolute;
+            top: 11%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 20px;
+            color: #333;
+            z-index: 1000;
+            text-align: center;
+            margin-top: 2px;
+        }
+        .button {
+            width: 30px;
+            height: 30px;
+            text-decoration: none;
+            display: inline-block;
+            cursor: pointer;
+            border-style: none;
+            color: white;
+            background-color: #ee6161;
+            border-radius: 100%;
+            overflow: hidden;
+            text-align: center;
+            opacity: 1.0;
+        }
+        /* Button positions */
+        #b1, #b2, #b3, #b4, #b5, #b6, #b7, #b8, #b9 {
+            position: absolute;
+        }
+        #b1 { top: 15%; left: 15%; }
+        #b2 { top: 15%; left: 50%; transform: translateX(-50%); }
+        #b3 { top: 15%; left: 90%; }
+        #b4 { top: 50%; left: 10%; transform: translateY(-50%); }
+        #b5 { top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        #b6 { top: 50%; left: 90%; transform: translateY(-50%); }
+        #b7 { bottom: 10%; left: 10%; }
+        #b8 { bottom: 10%; left: 50%; transform: translateX(-50%); }
+        #b9 { bottom: 10%; left: 90%; }
+        /* Modal Styles */
+        .modal {
+            display: none; 
+            position: fixed;
+            z-index: 1050;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: rgba(0, 0, 0, 1);
+        }
+        .modal-content {
+            position: relative;
+            background-color: white;
+            margin: 8% auto;
+            padding: 15px;
+            border: 1px solid #888;
+            width: 50%;
+            max-width: 450px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .modal-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 18px;
+            margin-top: 15px;
+        }
+        .modal-button:disabled {
+            background-color: #000;
+            cursor: not-allowed;
+        }
+        .emoji {
+            font-size: 40px;
+            margin-bottom: 50px;
+        }
+        .camera-icon {
+            font-size: 60px;
+        }
+        #camera-feed {
+            width: 100%;
+            height: auto;
+            object-fit: cover;
+            border-radius: 10px;
+            margin-top: 10px;
+        }
+		
+        /* Custom Styles for Your Requirements */
+        .custom-top-bar {
+            background-color: green;
+            padding: 1px;
+            color: white;
+            text-align:left;
+            font-size: 18px;
+            border-radius: 10px 10px 0 0;
+            margin-top: -15px;
+            margin-bottom: 15px;
+            margin-left:-15px;
+            margin-right:-15px;
+        }
+        .custom-image {
+            width: 120px;
+            height: 120px;
+            border-radius: 10%;
+            margin-bottom: 10px;
+        }
+        .custom-header {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        /* Survey Styles */
+        #survey-modal .modal-content {
+            position: relative;
+            background-color: white;
+            margin: 4% auto;
+            padding: 15px;
+            border: 1px solid #888;
+            width: 50%;
+            max-width: 800px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        #survey-modal .custom-top-bar {
+            background-color: green;
+            padding: 1px;
+            color: white;
+            text-align: center;
+            font-size: 16px;
+            border-radius: 10px 10px 0 0;
+            margin-top: -15px;
+            margin-bottom: 15px;
+            margin-left: -15px;
+            margin-right: -15px;
+        }
+        #survey-modal .custom-image {
+            width: 100%;
+            height: auto;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+        #survey-modal .modal-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 18px;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div id="header"><p>Eye Tracking on the Map</p></div>
+
+    <!-- Modals for Step-by-Step Instructions -->
+    <!-- Research Project Info Modal -->
+    <div id="research-info-modal" class="modal">
+        <div class="modal-content">
+            <div class="custom-top-bar">
+                 <p>This study is part of a research project. All results will be deleted once the study is published.</p>
+				 <p><span style="color: orange;">!</span> We value your privacy and do not store any images from your camera. It is not our intention to collect any personal data, and you always have the right to request the removal of your data.</p>
+            </div>
+            <img src="images/hello.png" class="custom-image" alt="Emoji">
+            <div class="custom-header">Hi there!</div>
+            <p>You're about to take part in a study. Please read all the instructions carefully.</p>
+            <button class="modal-button" data-next-modal="emoji-modal">Next</button>
+        </div>
+    </div>
+
+    <!-- Stay Still Modal -->
+    <div id="stay-still-modal" class="modal">
+        <div class="modal-content">
+		<div class="custom-top-bar">
+                 <p>This study is part of a research project. All results will be deleted once the study is published.</p>
+				 <p><span style="color: orange;">!</span> We value your privacy and do not store any images from your camera. It is not our intention to collect any personal data, and you always have the right to request the removal of your data.</p>
+            </div>
+		    <img src="images/facial_recognition.png" class="custom-image" alt="Emoji">
+            <p>Try to keep your head still and stay in front of the screen for the whole time.</p>
+            <p>Make sure no one will interrupt you for the next few minutes.</p>
+            <button class="modal-button" data-next-modal="green-frame-modal">Next</button>
+        </div>
+    </div>
+
+    <!-- Camera Access Modal -->
+    <div id="camera-modal" class="modal">
+        <div class="modal-content">
+		<div class="custom-top-bar">
+                 <p>This study is part of a research project. All results will be deleted once the study is published.</p>
+				 <p><span style="color: orange;">!</span> We value your privacy and do not store any images from your camera. It is not our intention to collect any personal data, and you always have the right to request the removal of your data.</p>
+            </div>
+		    <img src="images/webcam.png" class="custom-image" alt="Emoji">
+            <p>Please enable your camera access.</p>
+            <button class="modal-button" id="camera-allow-btn" onclick="requestCameraAccess()">Allow Camera</button>
+        </div>
+    </div>
+
+    <!-- Face Check Modal -->
+    <div id="green-frame-modal" class="modal">
+        <div class="modal-content">
+            <p>Is your face clearly visible on the screen?</p>
+            <video id="camera-feed" autoplay playsinline></video>
+            <button class="modal-button" onclick="startCalibration()">Yes</button>
+            <button class="modal-button" onclick="retryCamera()">No</button>
+        </div>
+    </div>
+
+    <!-- Calibration Title -->
+    <h1 id="calibration-title"><span style="color: orange;">Calibration</span></h1>
+    <h2 id="calibration-instructions">Please click on each dot to turn it green</h2>
+	
+    <!-- Calibration Container -->
+    <div id="calibration-container">
+        <button id="b1" class="button calibration-point"></button>
+        <button id="b2" class="button calibration-point"></button>
+        <button id="b3" class="button calibration-point"></button>
+        <button id="b4" class="button calibration-point"></button>
+        <button id="b5" class="button calibration-point"></button>
+        <button id="b6" class="button calibration-point"></button>
+        <button id="b7" class="button calibration-point"></button>
+        <button id="b8" class="button calibration-point"></button>
+        <button id="b9" class="button calibration-point"></button>
+        <div id="status" style="display: none;">Click each point to calibrate.</div>
+    </div>
+
+    <!-- Map Container -->
+    <div id="map"></div>
+	
+	<!-- Eye Tracking Message -->
+    <div id="eye-tracking-message" style="display: none;">
+         <div class="custom-top-bar">
+             <p>Please look at the road network and hydrography on the map during eye tracking</p>
+            <button class="modal-button" id="close-message">OK</button>
+         </div>
+    </div>
+
+    <!-- Survey Modal -->
+    <div id="survey-modal" class="modal">
+        <div class="modal-content">
+            <div class="custom-top-bar">
+                <p>Which of the following sketches is similar to the road network and hydrography depicted on the map?</p>
+            </div>
+            <img src="images/map_q1_ist6_mod_1.png" class="custom-image" alt="Survey Image">
+            <button class="modal-button" onclick="submitAnswer('a')">a</button>
+            <button class="modal-button" onclick="submitAnswer('b')">b</button>
+            <button class="modal-button" onclick="submitAnswer('c')">c</button>
+            <button class="modal-button" onclick="submitAnswer('d')">d</button>
+        </div>
+    </div>
+	<!-- User Information Modal -->
+    <div id="user-info-modal" class="modal">
+        <div class="modal-content">
+           <div class="custom-top-bar">
+                <p> Optional info about you  </p>
+            </div>
+            <form id="user-info-form">
+                <label for="age">Age:</label>
+               <input type="number" id="age" name="age" required min="0">
+               <br><br>
+               <label for="gender">Gender:</label>
+               <select id="gender" name="gender" required>
+                   <option value="male">Male</option>
+                   <option value="female">Female</option>
+                   <option value="other">Other</option>
+               </select>
+               <br><br>
+               <button class="modal-button" type="button" onclick="submitUserInfo()">Submit</button>
+           </form>
+       </div>
+   </div>
+	
+  <!-- Link to main.js file -->
+    <script src="js/main.js"></script>
+
+    <div id="footer"><p>&copy; 2024 Rahimeh Gharibpour</p></div>
+</body>
+</html>
